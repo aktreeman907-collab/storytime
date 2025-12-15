@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StoryTime — Instant AI Bedtime Stories</title>
+
+  <!-- Tailwind CSS (Styling) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons (Icons) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      /* Transparent background so the canvas behind is visible */
+      background-color: transparent;
+      overflow-x: hidden;
+    }
+
+    #app-root {
+      position: relative;
+      z-index: 10;
+    }
+
+    /* The canvas holds the galaxy */
+    #galaxy-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      background-color: #020305;
+    }
+
+    /* Form Elements Selection Color */
+    ::selection {
+      background: #ffd140;
+      color: black;
+    }
+
+    /* Custom scrollbar */
+    textarea::-webkit-scrollbar {
+      width: 8px;
+    }
+    textarea::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+    }
+    textarea::-webkit-scrollbar-thumb {
+      background: rgba(255, 209, 64, 0.3);
+      border-radius: 4px;
+    }
+    textarea::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 209, 64, 0.5);
+    }
+
+    /* Smooth transitions for interactive elements */
+    .input-field {
+      transition: all 0.2s ease;
+    }
+    .input-field:focus {
+      border-color: rgba(255, 209, 64, 0.6);
+      box-shadow: 0 0 0 1px rgba(255, 209, 64, 0.4);
+    }
+
+    /* Toggle Switch */
+    .toggle-checkbox:checked {
+      right: 0;
+      border-color: #68D391;
+    }
+    .toggle-checkbox:checked + .toggle-label {
+      background-color: #68D391;
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://aistudiocdn.com/react@^19.2.0",
+      "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+      "react/": "https://aistudiocdn.com/react@^19.2.0/",
+      "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0"
+    }
+  }
+  </script>
+</head>
+
+<body class="text-[#f9fbff] font-sans">
+  <!-- 1. The Cosmic Background -->
+  <canvas id="galaxy-canvas"></canvas>
+
+  <!-- 2. Holiday Decoration Layer (Initially Hidden) -->
+  <div id="holiday-layer" class="pointer-events-none absolute inset-0 overflow-hidden z-0 hidden">
+    <!-- Trees Top Left -->
+    <div class="absolute top-0 left-0 p-4 opacity-80 transform -translate-x-4 -translate-y-4">
+      <div class="relative">
+        <i data-lucide="trees" class="text-green-400 w-16 h-16 absolute top-0 left-2 filter drop-shadow-[0_0_10px_rgba(74,222,128,0.5)]"></i>
+        <i data-lucide="tree-pine" class="text-emerald-600 w-12 h-12 absolute top-8 left-10 filter drop-shadow-[0_0_10px_rgba(5,150,105,0.5)]"></i>
+        <div class="absolute top-4 left-6 w-1 h-1 bg-yellow-300 rounded-full animate-pulse"></div>
+        <div class="absolute top-10 left-12 w-1 h-1 bg-red-400 rounded-full animate-pulse delay-75"></div>
+      </div>
+    </div>
+
+    <!-- Wreath Top Right (Desktop) -->
+    <div class="absolute top-8 right-8 opacity-90 hidden md:block">
+      <div class="relative w-20 h-20 border-4 border-green-700 rounded-full border-dashed flex items-center justify-center filter drop-shadow-[0_0_15px_rgba(20,83,45,0.8)]">
+        <div class="absolute -top-3 text-red-500 text-3xl">🎀</div>
+        <div class="w-full h-full rounded-full border-4 border-green-500 opacity-50 absolute animate-pulse"></div>
+      </div>
+    </div>
+
+    <!-- Cookies Bottom Right -->
+    <div class="absolute bottom-40 right-4 md:right-20 opacity-90 transform rotate-12">
+      <div class="flex items-end gap-2">
+        <i data-lucide="cookie" class="text-amber-600 w-10 h-10 filter drop-shadow-lg"></i>
+        <div class="relative">
+          <div class="w-8 h-12 bg-white/20 border border-white/40 rounded-b-md backdrop-blur-sm relative overflow-hidden">
+            <div class="absolute bottom-0 w-full h-2/3 bg-white"></div>
+          </div>
+        </div>
+        <i data-lucide="cookie" class="text-amber-700 w-8 h-8 -ml-4 mb-2 filter drop-shadow-lg"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Main Application Content -->
+  <div id="app-root" class="relative z-10 max-w-4xl mx-auto px-4 py-6 min-h-screen pb-16">
+    <!-- Header -->
+    <header class="mb-8">
+      <div class="inline-flex items-center gap-2 bg-white/5 border border-[#ffd140]/35 rounded-full px-3 py-1 mb-4 text-xs text-[#ffeb8a]">
+        <span class="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.9)]"></span>
+        One free bedtime story per kid, per day – right from your browser.
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-[1.6fr_1.3fr] gap-6 items-center">
+        <div class="space-y-3">
+          <h1 class="text-3xl md:text-5xl font-bold tracking-tight">
+            <span class="text-[#ffd140]">StoryTime</span> — Instant AI Bedtime Stories
+          </h1>
+          <p class="text-[#a5b4cf] text-sm md:text-base max-w-xl leading-relaxed">
+            Fill in a few details about your kiddo and their world, or tap “Quick Story” when you’re exhausted.
+            You’ll get a cozy, custom bedtime story on demand.
+          </p>
+        </div>
+
+        <div class="flex justify-center">
+          <div class="relative w-56 h-48 filter drop-shadow-[0_18px_35px_rgba(0,0,0,0.75)] hover:scale-105 transition-transform duration-500">
+            <svg viewBox="0 0 240 180" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+              <defs>
+                <linearGradient id="pageGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#fef3c7" />
+                  <stop offset="100%" stop-color="#fde68a" />
+                </linearGradient>
+                <filter id="shadow">
+                  <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.5"/>
+                </filter>
+              </defs>
+              <path d="M20 140 C 20 140, 80 155, 120 155 C 160 155, 220 140, 220 140 L 220 150 C 220 150, 160 165, 120 165 C 80 165, 20 150, 20 150 Z" fill="#522500" />
+              <path d="M25 135 C 25 135, 80 148, 120 148 L 120 40 C 80 40, 25 55, 25 55 Z" fill="url(#pageGradient)" stroke="#d4d4d8" stroke-width="0.5" />
+              <path d="M215 135 C 215 135, 160 148, 120 148 L 120 40 C 160 40, 215 55, 215 55 Z" fill="url(#pageGradient)" stroke="#d4d4d8" stroke-width="0.5" />
+              <path d="M115 40 L 125 40 L 125 150 L 115 150 Z" fill="rgba(0,0,0,0.1)" />
+              <path d="M20 140 L 25 135 L 25 55 L 20 60 Z" fill="#92400e" />
+              <path d="M220 140 L 215 135 L 215 55 L 220 60 Z" fill="#92400e" />
+              <path d="M140 40 L 140 100 L 150 90 L 160 100 L 160 45" fill="#ef4444" filter="url(#shadow)" />
+              <circle cx="20" cy="40" r="2" fill="#ffd140" class="animate-pulse" />
+              <circle cx="220" cy="30" r="3" fill="#ffd140" class="animate-pulse delay-75" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex flex-col gap-6">
+      <!-- Builder Section -->
+      <section class="bg-[rgba(10,18,40,0.96)] border border-white/5 rounded-[20px] p-6 shadow-[0_18px_45px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h2 class="text-xl font-bold mb-2">Customize Tonight’s Story</h2>
+            <p class="text-[#a5b4cf] text-sm">
+              These details help shape the story.
+            </p>
+          </div>
+          <div id="holiday-badge" class="hidden bg-red-900/30 border border-red-500/30 rounded-full px-3 py-1 flex items-center gap-2">
+            <i data-lucide="gift" class="text-red-400 w-3 h-3"></i>
+            <span class="text-xs text-red-200 uppercase tracking-widest font-bold">Holiday Spirit</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-1">
+            <label class="text-xs uppercase tracking-widest text-[#a5b4cf] ml-1">Child's Name</label>
+            <input id="input-name" type="text" placeholder="Felicitee, Jay, Mateo..." class="input-field w-full rounded-full border border-white/5 px-4 py-2.5 bg-[#090d1c]/90 text-sm outline-none text-[#f9fbff] placeholder-white/20">
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs uppercase tracking-widest text-[#a5b4cf] ml-1">Age</label>
+            <input id="input-age" type="number" placeholder="7" min="1" max="14" class="input-field w-full rounded-full border border-white/5 px-4 py-2.5 bg-[#090d1c]/90 text-sm outline-none text-[#f9fbff] placeholder-white/20">
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs uppercase tracking-widest text-[#a5b4cf] ml-1">Tone</label>
+            <select id="input-tone" class="input-field w-full rounded-full border border-white/5 px-4 py-2.5 bg-[#090d1c]/90 text-sm outline-none text-[#f9fbff]">
+              <option value="silly and giggly">Silly / giggly</option>
+              <option value="soft and sleepy">Soft & sleepy</option>
+              <option value="brave and adventurous">Brave / adventurous</option>
+              <option value="magical and dreamy">Magical / dreamy</option>
+            </select>
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs uppercase tracking-widest text-[#a5b4cf] ml-1">Length</label>
+            <select id="input-length" class="input-field w-full rounded-full border border-white/5 px-4 py-2.5 bg-[#090d1c]/90 text-sm outline-none text-[#f9fbff]">
+              <option value="short">Short (3–5 minutes)</option>
+              <option value="medium" selected>Medium (7–10 minutes)</option>
+              <option value="long">Long (10–15 minutes)</option>
+            </select>
+          </div>
+
+          <!-- Holiday Toggle -->
+          <div id="holiday-toggle-container" class="hidden md:col-span-2 bg-gradient-to-r from-red-900/20 to-green-900/20 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="bg-white/10 p-2 rounded-full">
+                <i data-lucide="tree-pine" class="text-green-400 w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-sm text-[#ffeb8a]">Holiday Story Mode</h3>
+                <p class="text-xs text-[#a5b4cf]">Add festive magic, decorations, and holiday themes.</p>
+              </div>
+            </div>
+            <label for="toggle-holiday" class="flex items-center cursor-pointer relative">
+              <input type="checkbox" id="toggle-holiday" class="sr-only">
+              <div class="w-11 h-6 bg-gray-700 rounded-full border border-gray-600 transition-colors" id="toggle-bg"></div>
+              <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform" id="toggle-dot"></div>
+            </label>
+          </div>
+
+          <div class="space-y-1 md:col-span-2">
+            <label class="text-xs uppercase tracking-widest text-[#a5b4cf] ml-1">Custom Setting</label>
+            <select id="input-setting" class="input-field w-full rounded-full border border-white/5 px-4 py-2.5 bg-[#090d1c]/90 text-sm outline-none text-[#f9fbff]">
+              <option value="">Surprise me</option>
+              <option value="a cozy cabin in the snowy Alaska woods">Cozy cabin in snowy Alaska</option>
+              <option value="a pirate ship sailing through the northern lights">Pirate ship under the northern lights</option>
+              <option value="a floating sky island full of friendly dragons">Floating dragon island</option>
+              <option value="a secret magic garden behind your house">Magic garden</option>
+            </select>
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs uppercase tracking-widest text-[#a5b4cf] ml-1">Tonight's Focus</label>
+            <select id="input-focus" class="input-field w-full rounded-full border border-white/5 px-4 py-2.5 bg-[#090d1c]/90 text-sm outline-none text-[#f9fbff]">
+              <option value="">Just for fun</option>
+              <option value="feeling safe at night">Feeling safe at night</option>
+              <option value="being brave at school tomorrow">Brave for school tomorrow</option>
+              <option value="trying new foods">Trying new foods</option>
+            </select>
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs uppercase tracking-widest text-[#a5b4cf] ml-1">Supporting Character</label>
+            <input id="input-supporting" type="text" placeholder="Little sister, pet dog..." class="input-field w-full rounded-full border border-white/5 px-4 py-2.5 bg-[#090d1c]/90 text-sm outline-none text-[#f9fbff] placeholder-white/20">
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-3 mt-6 items-center">
+          <button id="btn-generate" class="bg-gradient-to-br from-[#ffd140] to-[#ffb400] text-[#1b1300] font-bold rounded-full px-6 py-2.5 shadow-[0_12px_25px_rgba(0,0,0,0.6)] hover:-translate-y-px hover:shadow-[0_15px_35px_rgba(0,0,0,0.7)] transition-all flex items-center gap-2">
+            <i data-lucide="sparkles" class="w-4 h-4"></i> Generate Story
+          </button>
+          <button id="btn-quick" class="bg-white/5 text-[#ffeb8a] border border-white/10 font-semibold rounded-full px-5 py-2.5 hover:bg-white/10 hover:-translate-y-px transition-all">
+            Quick Story (No Setup)
+          </button>
+        </div>
+      </section>
+
+      <!-- Output Section -->
+      <section class="bg-[rgba(10,18,40,0.96)] border border-white/5 rounded-[20px] p-6 shadow-[0_18px_45px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+        <h2 class="text-xl font-bold mb-2">Tonight’s Story</h2>
+        <div id="story-box" class="min-h-[200px] bg-[radial-gradient(circle_at_0_0,rgba(255,209,64,0.12),rgba(8,12,32,0.96))] border border-white/5 rounded-[18px] p-6 text-[0.96rem] leading-relaxed whitespace-pre-wrap text-[#f9fbff]">
+          <span class="text-[#a5b4cf]">Your bedtime story will appear here. Start by filling in a few details above, or tap <strong>Quick Story</strong>.</span>
+        </div>
+
+        <div class="flex flex-wrap gap-2 mt-6">
+          <button id="btn-read" class="border border-white/15 text-[#f9fbff] px-4 py-2 rounded-full hover:bg-white/5 transition-all flex items-center gap-2 text-sm">
+            <i data-lucide="play" class="w-4 h-4"></i> Read Aloud
+          </button>
+          <button id="btn-stop" class="border border-white/15 text-[#f9fbff] px-4 py-2 rounded-full hover:bg-white/5 transition-all flex items-center gap-2 text-sm">
+            <i data-lucide="square" class="w-4 h-4"></i> Stop
+          </button>
+          <button onclick="window.print()" class="border border-white/15 text-[#f9fbff] px-4 py-2 rounded-full hover:bg-white/5 transition-all flex items-center gap-2 text-sm">
+            <i data-lucide="printer" class="w-4 h-4"></i> Print / Save PDF
+          </button>
+        </div>
+      </section>
+
+      <!-- Library Section -->
+      <section class="bg-[rgba(10,18,40,0.96)] border border-white/5 rounded-[20px] p-6 shadow-[0_18px_45px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+        <h2 class="text-xl font-bold mb-2">Free Story Library</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div onclick="loadPreset('bear')" class="border border-white/5 bg-[#090d1e]/96 p-3 rounded-xl cursor-pointer hover:border-[#ffd140]/50 hover:bg-[#0f1630]/98 hover:-translate-y-px transition-all">
+            <div class="text-[#ffeb8a] font-semibold text-sm mb-1">The Bear Who Ate The Moon</div>
+            <div class="text-xs text-[#a5b4cf]">Gentle • 5 mins</div>
+          </div>
+          <div onclick="loadPreset('dragon')" class="border border-white/5 bg-[#090d1e]/96 p-3 rounded-xl cursor-pointer hover:border-[#ffd140]/50 hover:bg-[#0f1630]/98 hover:-translate-y-px transition-all">
+            <div class="text-[#ffeb8a] font-semibold text-sm mb-1">Spark the Cloud Dragon</div>
+            <div class="text-xs text-[#a5b4cf]">Brave • 8 mins</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pricing Section -->
+      <section class="bg-[rgba(10,18,40,0.96)] border border-white/5 rounded-[20px] p-6 shadow-[0_18px_45px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+        <h2 class="text-xl font-bold mb-2">Support StoryTime</h2>
+        <p class="text-[#a5b4cf] text-sm mb-6">
+          Unlock more stories or bundles. Payments processed securely by PayPal.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Cards -->
+          <div class="bg-[radial-gradient(circle_at_0_0,rgba(255,209,64,0.15),rgba(7,9,26,0.97))] border border-white/10 rounded-[18px] p-4 flex flex-col gap-2 shadow-[0_18px_38px_rgba(0,0,0,0.7)]">
+            <h3 class="text-base font-bold m-0 text-white">Short Story — $0.99</h3>
+            <div class="text-sm font-semibold text-[#ffeb8a]">Perfect for quick tuck-ins.</div>
+            <div class="mt-2">
+              <form action="https://www.paypal.com/ncp/payment/2AMCMQHMGC2Z8" method="post" target="_blank" class="inline-grid justify-items-center gap-2">
+                <input type="submit" value="Buy Now" class="text-center border-none rounded bg-[#ffd140] text-black font-bold text-base py-0 px-8 h-[2.625rem] min-w-[11.625rem] cursor-pointer hover:bg-[#ffc107] transition-colors" />
+                <img src="https://www.paypalobjects.com/images/Debit_Credit_APM.svg" alt="cards" />
+              </form>
+            </div>
+          </div>
+
+          <div class="bg-[radial-gradient(circle_at_0_0,rgba(255,209,64,0.15),rgba(7,9,26,0.97))] border border-white/10 rounded-[18px] p-4 flex flex-col gap-2 shadow-[0_18px_38px_rgba(0,0,0,0.7)]">
+            <h3 class="text-base font-bold m-0 text-white">Medium Story — $1.49</h3>
+            <div class="text-sm font-semibold text-[#ffeb8a]">Average bedtime adventure.</div>
+            <div class="mt-2">
+              <form action="https://www.paypal.com/ncp/payment/W56CVDP29HNPY" method="post" target="_blank" class="inline-grid justify-items-center gap-2">
+                <input type="submit" value="Buy Now" class="text-center border-none rounded bg-[#ffd140] text-black font-bold text-base py-0 px-8 h-[2.625rem] min-w-[11.625rem] cursor-pointer hover:bg-[#ffc107] transition-colors" />
+                <img src="https://www.paypalobjects.com/images/Debit_Credit_APM.svg" alt="cards" />
+              </form>
+            </div>
+          </div>
+
+          <div class="bg-[radial-gradient(circle_at_0_0,rgba(255,209,64,0.15),rgba(7,9,26,0.97))] border border-white/10 rounded-[18px] p-4 flex flex-col gap-2 shadow-[0_18px_38px_rgba(0,0,0,0.7)]">
+            <h3 class="text-base font-bold m-0 text-white">Long Story — $1.99</h3>
+            <div class="text-sm font-semibold text-[#ffeb8a]">Extra-long nights.</div>
+            <div class="mt-2">
+              <form action="https://www.paypal.com/ncp/payment/Z3KH75KY7EGSC" method="post" target="_blank" class="inline-grid justify-items-center gap-2">
+                <input type="submit" value="Buy Now" class="text-center border-none rounded bg-[#ffd140] text-black font-bold text-base py-0 px-8 h-[2.625rem] min-w-[11.625rem] cursor-pointer hover:bg-[#ffc107] transition-colors" />
+                <img src="https://www.paypalobjects.com/images/Debit_Credit_APM.svg" alt="cards" />
+              </form>
+            </div>
+          </div>
+
+          <div class="bg-[radial-gradient(circle_at_0_0,rgba(255,209,64,0.15),rgba(7,9,26,0.97))] border border-white/10 rounded-[18px] p-4 flex flex-col gap-2 shadow-[0_18px_38px_rgba(0,0,0,0.7)]">
+            <h3 class="text-base font-bold m-0 text-white">Bundle of 5 — $3.99</h3>
+            <div class="text-sm font-semibold text-[#ffeb8a]">Great for busy weeks.</div>
+            <div class="mt-2">
+              <form action="https://www.paypal.com/ncp/payment/8RDSNCE864ZA6" method="post" target="_blank" class="inline-grid justify-items-center gap-2">
+                <input type="submit" value="Buy Now" class="text-center border-none rounded bg-[#ffd140] text-black font-bold text-base py-0 px-8 h-[2.625rem] min-w-[11.625rem] cursor-pointer hover:bg-[#ffc107] transition-colors" />
+                <img src="https://www.paypalobjects.com/images/Debit_Credit_APM.svg" alt="cards" />
+              </form>
+            </div>
+          </div>
+
+          <div class="bg-[radial-gradient(circle_at_0_0,rgba(255,209,64,0.15),rgba(7,9,26,0.97))] border border-white/10 rounded-[18px] p-4 flex flex-col gap-2 shadow-[0_18px_38px_rgba(0,0,0,0.7)]">
+            <h3 class="text-base font-bold m-0 text-white">Bundle of 10 — $7.99</h3>
+            <div class="text-sm font-semibold text-[#ffeb8a]">Stock up for road trips.</div>
+            <div class="mt-2">
+              <form action="https://www.paypal.com/ncp/payment/RJBRQZ5VDFNGA" method="post" target="_blank" class="inline-grid justify-items-center gap-2">
+                <input type="submit" value="Buy Now" class="text-center border-none rounded bg-[#ffd140] text-black font-bold text-base py-0 px-8 h-[2.625rem] min-w-[11.625rem] cursor-pointer hover:bg-[#ffc107] transition-colors" />
+                <img src="https://www.paypalobjects.com/images/Debit_Credit_APM.svg" alt="cards" />
+              </form>
+            </div>
+          </div>
+
+          <!-- Subscriptions (placeholders) -->
+          <div class="bg-[radial-gradient(circle_at_0_0,rgba(255,209,64,0.15),rgba(7,9,26,0.97))] border border-white/10 rounded-[18px] p-4 flex flex-col gap-2 shadow-[0_18px_38px_rgba(0,0,0,0.7)]">
+            <h3 class="text-base font-bold m-0 text-white">Unlimited — $19.99/mo</h3>
+            <div class="text-sm font-semibold text-[#ffeb8a]">One household.</div>
+            <div class="mt-2">
+              <div id="paypal-button-container-P-7AG37489BB000994CNERGJGQ" class="min-h-[40px] flex justify-center">
+                <button class="bg-[#ffd140] text-black font-bold py-2 px-8 rounded h-[2.625rem] w-full max-w-[200px] text-sm opacity-80 cursor-not-allowed">Subscribe</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-[radial-gradient(circle_at_0_0,rgba(255,209,64,0.15),rgba(7,9,26,0.97))] border border-white/10 rounded-[18px] p-4 flex flex-col gap-2 shadow-[0_18px_38px_rgba(0,0,0,0.7)]">
+            <h3 class="text-base font-bold m-0 text-white">Family — $29.99/mo</h3>
+            <div class="text-sm font-semibold text-[#ffeb8a]">Shared households.</div>
+            <div class="mt-2">
+              <div id="paypal-button-container-P-5WR418139G939580ENERGPZY" class="min-h-[40px] flex justify-center">
+                <button class="bg-[#ffd140] text-black font-bold py-2 px-8 rounded h-[2.625rem] w-full max-w-[200px] text-sm opacity-80 cursor-not-allowed">Subscribe</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="mt-8 text-center text-xs text-[#a5b4cf] py-4">
+      &copy; 2025 Cyphernex Systems. All rights reserved.
+    </footer>
+  </div>
+
+  <!-- MAIN SCRIPT: Galaxy Logic + App Logic -->
+  <script>
+    // 1. Initialize Icons
+    lucide.createIcons();
+
+    // 2. Application Logic
+    const state = {
+      isHoliday: false,
+      holidayModeEnabled: false
+    };
+
+    // Date Logic: Dec 29, 2025 4pm AKST = Dec 30, 2025 01:00 UTC
+    function checkSeason() {
+      const expirationDate = new Date('2025-12-30T01:00:00Z');
+      const now = new Date();
+      const isActive = now < expirationDate;
+
+      state.isHoliday = isActive;
+
+      if (isActive) {
+        document.getElementById('holiday-toggle-container').classList.remove('hidden');
+        document.getElementById('holiday-layer').classList.remove('hidden');
+        document.getElementById('holiday-badge').classList.remove('hidden');
+      } else {
+        document.getElementById('holiday-toggle-container').classList.add('hidden');
+        document.getElementById('holiday-layer').classList.add('hidden');
+        document.getElementById('holiday-badge').classList.add('hidden');
+      }
+    }
+
+    checkSeason();
+
+    // Toggle Listener
+    const toggle = document.getElementById('toggle-holiday');
+    toggle.addEventListener('change', (e) => {
+      state.holidayModeEnabled = e.target.checked;
+      const bg = document.getElementById('toggle-bg');
+      const dot = document.getElementById('toggle-dot');
+
+      if (e.target.checked) {
+        bg.classList.remove('bg-gray-700');
+        bg.classList.add('bg-green-600');
+        dot.classList.add('translate-x-5');
+      } else {
+        bg.classList.add('bg-gray-700');
+        bg.classList.remove('bg-green-600');
+        dot.classList.remove('translate-x-5');
+      }
+    });
+
+    // --- AI STORY GENERATION (Netlify Function) ---
+    async function generateStoryViaAI(payload) {
+      const res = await fetch('/.netlify/functions/generate-story', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.error || `AI request failed (HTTP ${res.status}).`;
+        throw new Error(msg);
+      }
+
+      if (!data.story) {
+        throw new Error('AI response missing "story".');
+      }
+
+      return data.story;
+    }
+
+    function buildPayloadFromInputs() {
+      const name = document.getElementById('input-name').value.trim();
+      const age = document.getElementById('input-age').value.trim();
+      const tone = document.getElementById('input-tone').value;
+      const length = document.getElementById('input-length').value;
+      const setting = document.getElementById('input-setting').value;
+      const focus = document.getElementById('input-focus').value;
+      const supporting = document.getElementById('input-supporting').value.trim();
+
+      return {
+        name: name || 'Hero',
+        age: age || '',
+        tone,
+        length,
+        setting: setting || '',
+        focus: focus || '',
+        supporting: supporting || '',
+        holidayMode: Boolean(state.holidayModeEnabled && state.isHoliday)
+      };
+    }
+
+    function setButtonLoading(btn, isLoading) {
+      if (isLoading) {
+        btn.innerHTML = '✨ Dreaming...';
+        btn.disabled = true;
+        btn.classList.add('opacity-70');
+      } else {
+        btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> Generate Story';
+        btn.disabled = false;
+        btn.classList.remove('opacity-70');
+        lucide.createIcons();
+      }
+    }
+
+    // Generate Logic (REAL AI CALL)
+    document.getElementById('btn-generate').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-generate');
+      const box = document.getElementById('story-box');
+      const payload = buildPayloadFromInputs();
+
+      setButtonLoading(btn, true);
+      box.innerText = "Dreaming up something good...";
+
+      try {
+        const story = await generateStoryViaAI(payload);
+        box.innerText = story;
+      } catch (err) {
+        box.innerText =
+          "Not connected to the AI yet.\n\n" +
+          "What to fix:\n" +
+          "1) Make sure Netlify Functions are deployed (netlify/functions/generate-story.js)\n" +
+          "2) Add OPENAI_API_KEY in Netlify Environment Variables\n\n" +
+          "Error: " + (err?.message || String(err));
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    });
+
+    // Quick Story Logic
+    document.getElementById('btn-quick').addEventListener('click', () => {
+      document.getElementById('input-name').value = '';
+      document.getElementById('input-age').value = '';
+      document.getElementById('input-setting').value = '';
+      document.getElementById('input-focus').value = '';
+      document.getElementById('input-supporting').value = '';
+      document.getElementById('btn-generate').click();
+    });
+
+    // Preset Logic
+    window.loadPreset = function(type) {
+      const box = document.getElementById('story-box');
+      if (type === 'bear') box.innerText = "Once upon a time, The Starry Bear woke up from his long nap...";
+      if (type === 'dragon') box.innerText = "Far away, in the Cloud Kingdom, a little dragon named Spark could not breathe fire...";
+    };
+
+    // Text-to-Speech Logic
+    const readBtn = document.getElementById('btn-read');
+    const stopBtn = document.getElementById('btn-stop');
+    const speechSupported = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+    let activeUtterance = null;
+
+    const setSpeechButtonState = (isSpeaking) => {
+      const disabledClasses = ['opacity-60', 'cursor-not-allowed'];
+
+      readBtn.disabled = !speechSupported || isSpeaking;
+      stopBtn.disabled = !speechSupported || !isSpeaking;
+
+      [readBtn, stopBtn].forEach((btn) => {
+        if (!btn) return;
+        if (btn.disabled) {
+          disabledClasses.forEach(c => btn.classList.add(c));
+        } else {
+          disabledClasses.forEach(c => btn.classList.remove(c));
+        }
+      });
+    };
+
+    const readStoryAloud = () => {
+      const box = document.getElementById('story-box');
+      const text = box.innerText.trim();
+
+      if (!speechSupported) {
+        box.innerText = 'Speech synthesis is not supported in this browser. Please try Chrome, Edge, or Safari to use Read Aloud.';
+        return;
+      }
+
+      if (!text || text.startsWith('Your bedtime story will appear here')) {
+        box.innerText = 'Please generate or pick a story first, then tap Read Aloud.';
+        return;
+      }
+
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+
+      activeUtterance = new SpeechSynthesisUtterance(text);
+      activeUtterance.rate = 0.95;
+      activeUtterance.pitch = 1;
+      activeUtterance.onend = () => setSpeechButtonState(false);
+      activeUtterance.onerror = () => setSpeechButtonState(false);
+
+      window.speechSynthesis.speak(activeUtterance);
+      setSpeechButtonState(true);
+    };
+
+    const stopStoryAloud = () => {
+      if (!speechSupported) return;
+      window.speechSynthesis.cancel();
+      setSpeechButtonState(false);
+    };
+
+    if (readBtn && stopBtn) {
+      readBtn.addEventListener('click', readStoryAloud);
+      stopBtn.addEventListener('click', stopStoryAloud);
+      setSpeechButtonState(false);
+    }
+
+    // 3. Galaxy Engine (Canvas) — unchanged
+    const canvas = document.getElementById('galaxy-canvas');
+    const ctx = canvas.getContext('2d');
+    let w, h;
+
+    const resize = () => {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      renderScene();
+    };
+
+    window.addEventListener('resize', resize);
+
+    function randomNormal(mean, stdDev) {
+      let u = 0, v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return mean + stdDev * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
+    function renderScene() {
+      const bg = ctx.createRadialGradient(w/2, h/2, h*0.2, w/2, h/2, h*1.5);
+      bg.addColorStop(0, '#1a103c');
+      bg.addColorStop(0.4, '#050710');
+      bg.addColorStop(1, '#000000');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
+
+      const cx = w / 2;
+      const cy = h / 2;
+      ctx.globalCompositeOperation = 'lighter';
+      const particleCount = 4500;
+      const arms = 2;
+      const armTwist = 3.5;
+
+      for (let i = 0; i < particleCount; i++) {
+        let distNorm = Math.pow(Math.random(), 1.5);
+        const dist = distNorm * (Math.min(w, h) * 0.65);
+        const spiralAngle = distNorm * Math.PI * armTwist;
+        const armOffset = (Math.floor(Math.random() * arms) / arms) * (Math.PI * 2);
+        const scatter = randomNormal(0, 0.4);
+        const angle = spiralAngle + armOffset + scatter;
+        const x = cx + Math.cos(angle) * dist;
+        const y = cy + Math.sin(angle) * dist;
+
+        let r, g, b, a, size;
+        if (distNorm < 0.15) {
+          r = 255; g = 250; b = 220;
+          a = 0.8 + Math.random() * 0.2;
+          size = Math.random() * 3 + 1;
+        } else if (distNorm < 0.5) {
+          if (Math.random() > 0.5) { r = 255; g = 50; b = 150; }
+          else { r = 140; g = 50; b = 250; }
+          a = 0.5;
+          size = Math.random() * 2.5;
+        } else {
+          r = 50; g = 150; b = 255;
+          a = 0.4;
+          size = Math.random() * 2;
+        }
+
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.globalCompositeOperation = 'source-over';
+      for(let i=0; i < 75; i++) {
+        const x = Math.random() * w;
+        const y = Math.random() * h;
+        const size = Math.random() * 1.5 + 0.5;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = "white";
+        ctx.fillStyle = "white";
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (Math.random() > 0.9) {
+          ctx.strokeStyle = "rgba(255,255,255,0.4)";
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x - 5, y);
+          ctx.lineTo(x + 5, y);
+          ctx.moveTo(x, y - 5);
+          ctx.lineTo(x, y + 5);
+          ctx.stroke();
+        }
+      }
+
+      ctx.shadowBlur = 0;
+      ctx.globalCompositeOperation = 'screen';
+
+      const nebula1 = ctx.createRadialGradient(w*0.2, h*0.8, 0, w*0.2, h*0.8, w*0.4);
+      nebula1.addColorStop(0, 'rgba(0, 100, 255, 0.1)');
+      nebula1.addColorStop(1, 'transparent');
+      ctx.fillStyle = nebula1;
+      ctx.fillRect(0,0,w,h);
+
+      const nebula2 = ctx.createRadialGradient(w*0.8, h*0.2, 0, w*0.8, h*0.2, w*0.4);
+      nebula2.addColorStop(0, 'rgba(255, 0, 100, 0.1)');
+      nebula2.addColorStop(1, 'transparent');
+      ctx.fillStyle = nebula2;
+      ctx.fillRect(0,0,w,h);
+    }
+
+    resize();
+  </script>
+</body>
+</html>
