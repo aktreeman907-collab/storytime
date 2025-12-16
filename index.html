@@ -457,7 +457,8 @@
 
     // --- AI STORY GENERATION (Netlify Function) ---
     async function generateStoryViaAI(payload) {
-      const res = await fetch('/.netlify/functions/generate-story', {
+      const res = await fetch('https://meek-valkyrie-b3da36.netlify.app/.netlify/functions/generate-story', {
+
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
