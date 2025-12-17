@@ -1,119 +1,149 @@
 // netlify/functions/generate-story.js
-export default async (req) => {
-  // CORS (fine to keep even though same-origin when hosted on Netlify)
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
 
-  if (req.method === "OPTIONS") {
-    return new Response("", { status: 200, headers: corsHeaders });
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+exports.handler = async (event) => {
+  // Handle CORS preflight
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers: corsHeaders, body: "" };
   }
 
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Use POST." }), {
-      status: 405,
+  // Only allow POST
+  if (event.httpMethod !== "POST") {
+    return {
+      statusCode: 405,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+      body: JSON.stringify({ error: "Use POST." }),
+    };
   }
 
+  // API key from Netlify env vars
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: "Missing OPENAI_API_KEY in Netlify environment variables." }), {
-      status: 500,
+    return {
+      statusCode: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+      body: JSON.stringify({ error: "Missing OPENAI_API_KEY in Netlify env vars." }),
+    };
   }
 
-  let payload;
+  // Parse body
+  let body = {};
   try {
-    payload = await req.json();
+    body = JSON.parse(event.body || "{}");
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON body." }), {
-      status: 400,
+    return {
+      statusCode: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+      body: JSON.stringify({ error: "Invalid JSON." }),
+    };
   }
 
   const {
-    name = "Hero",
+    kidname = "friend",
     age = "",
     tone = "soft and sleepy",
-    length = "medium",
+    length = "short",
     setting = "",
     focus = "",
     supporting = "",
-    holidayModeEnabled = false,
-  } = payload;
+    holidayMode = false,
+  } = body || {};
 
-  const lengthHint =
-    length === "short" ? "3–5 minutes" : length === "long" ? "10–15 minutes" : "7–10 minutes";
+  const safeTone = String(tone).slice(0, 60);
+  const safeSetting = String(setting).slice(0, 120);
+  const safeFocus = String(focus).slice(0, 120);
+  const safeSupporting = String(supporting).slice(0, 80);
 
-  const prompt = `
-Write a cozy bedtime story for a child.
-- Child name: ${name}
-- Age: ${age || "unknown"}
-- Tone: ${tone}
-- Length: ${lengthHint}
-- Setting: ${setting || "surprise me (choose something magical and comforting)"}
-- Focus: ${focus || "just for fun"}
-- Supporting character: ${supporting || "optional (include only if it fits naturally)"}
-- Holiday mode: ${holidayModeEnabled ? "YES (gentle festive elements, not loud)" : "NO"}
+  const minutesTarget =
+    String(length).toLowerCase() === "long" ? "10–15" :
+    String(length).toLowerCase() === "medium" ? "5–8" :
+    "3–5";
 
-Rules:
-- No scary content.
-- Make it warm, calm, and comforting.
-- Use simple language suitable for the age.
-- End with a soothing wind-down and sleep cue.
+  const system = `
+You are a warm, gentle bedtime storyteller.
+Write a child-safe story: no violence, no adult themes, no scary content.
+Keep sentences simple and calming.
+End with a soothing, reassuring final line.
+Return only the story text (no title, no bullets).
+`.trim();
+
+  const user = `
+Create a bedtime story about ${kidname}${age ? ` (age ${age})` : ""}.
+Target length: about ${minutesTarget} minutes when read aloud.
+Tone: ${safeTone}.
+Setting: ${safeSetting || "surprise me"}.
+Tonight's focus: ${safeFocus || "surprise me"}.
+Supporting character: ${safeSupporting || "none"}.
+Holiday mode: ${holidayMode ? "ON (festive, cozy, gentle)" : "OFF"}.
 `.trim();
 
   try {
-    const r = await fetch("https://api.openai.com/v1/responses", {
+    const resp = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-5-mini",
-        input: prompt,
-        text: { verbosity: "medium" },
+        model: "gpt-4o-mini",
+        input: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        max_output_tokens:
+          String(length).toLowerCase() === "long" ? 1800 :
+          String(length).toLowerCase() === "medium" ? 1200 :
+          700,
       }),
     });
 
-    if (!r.ok) {
-      const errText = await r.text();
-      return new Response(JSON.stringify({ error: "OpenAI request failed", details: errText }), {
-        status: 500,
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      const msg = data?.error?.message || "OpenAI request failed.";
+      return {
+        statusCode: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+        body: JSON.stringify({ error: msg }),
+      };
     }
 
-    const data = await r.json();
+    // Pull text out safely
+    let story = "";
+    if (Array.isArray(data?.output)) {
+      for (const item of data.output) {
+        if (Array.isArray(item?.content)) {
+          for (const c of item.content) {
+            if (c?.type === "output_text" && typeof c?.text === "string") story += c.text;
+          }
+        }
+      }
+    }
+    story = String(story || "").trim();
 
-    // Responses API commonly provides "output_text" in many SDKs;
-    // in raw JSON, best fallback is to extract any text-like fields safely.
-    const story =
-      data.output_text ||
-      (Array.isArray(data.output) ? data.output.map(o => JSON.stringify(o)).join("\n") : "") ||
-      "";
+    if (!story) {
+      return {
+        statusCode: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "No story text returned from model." }),
+      };
+    }
 
-    return new Response(JSON.stringify({ story }), {
-      status: 200,
+    return {
+      statusCode: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e?.message || "Server error." }), {
-      status: 500,
+      body: JSON.stringify({ story }),
+    };
+  } catch (err) {
+    return {
+      statusCode: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-};
-
-    return new Response(JSON.stringify({ error: e?.message || "Server error." }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+      body: JSON.stringify({ error: err?.message || "Server error" }),
+    };
   }
 };
