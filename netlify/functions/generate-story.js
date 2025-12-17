@@ -8,12 +8,12 @@ const corsHeaders = {
 
 exports.handler = async (event) => {
   // Handle CORS preflight
-  if (event.httpMethod === "OPTIONS") {
+  if (event.httpMethod === "OPTIONS" ) {
     return { statusCode: 200, headers: corsHeaders, body: "" };
   }
 
   // Only allow POST
-  if (event.httpMethod !== "POST") {
+  if (event.httpMethod !== "POST" ) {
     return {
       statusCode: 405,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -83,20 +83,22 @@ Holiday mode: ${holidayMode ? "ON (festive, cozy, gentle)" : "OFF"}.
 `.trim();
 
   try {
-    const resp = await fetch("https://api.openai.com/v1/responses", {
+    // CORRECTED: Use the correct OpenAI Chat Completions endpoint
+    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
+      // CORRECTED: Use the correct request format with "messages" array
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        input: [
+        messages: [
           { role: "system", content: system },
           { role: "user", content: user },
         ],
-        max_output_tokens:
-          String(length).toLowerCase() === "long" ? 1800 :
+        max_tokens:
+          String(length ).toLowerCase() === "long" ? 1800 :
           String(length).toLowerCase() === "medium" ? 1200 :
           700,
       }),
@@ -113,18 +115,8 @@ Holiday mode: ${holidayMode ? "ON (festive, cozy, gentle)" : "OFF"}.
       };
     }
 
-    // Pull text out safely
-    let story = "";
-    if (Array.isArray(data?.output)) {
-      for (const item of data.output) {
-        if (Array.isArray(item?.content)) {
-          for (const c of item.content) {
-            if (c?.type === "output_text" && typeof c?.text === "string") story += c.text;
-          }
-        }
-      }
-    }
-    story = String(story || "").trim();
+    // CORRECTED: Extract text from the correct response structure
+    const story = data?.choices?.[0]?.message?.content || "";
 
     if (!story) {
       return {
