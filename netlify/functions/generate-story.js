@@ -1,4 +1,5 @@
 // netlify/functions/generate-story.js
+// Force redeploy - corrected OpenAI API integration
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
